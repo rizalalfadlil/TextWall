@@ -1,14 +1,17 @@
 package com.example.myapplicationq
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -72,7 +75,54 @@ fun SettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali")
                     }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            val mStart = morningStart.toIntOrNull()
+                            val mEnd = morningEnd.toIntOrNull()
+                            val nStart = nightStart.toIntOrNull()
+                            val interval = intervalMinutes.toIntOrNull()
+
+                            if (mStart == null || mStart !in 0..23 ||
+                                mEnd == null || mEnd !in 0..23 ||
+                                nStart == null || nStart !in 0..23
+                            ) {
+                                Toast.makeText(context, "Jam harus berupa angka antara 0 dan 23!", Toast.LENGTH_LONG).show()
+                                return@IconButton
+                            }
+
+                            if (interval == null || interval < minInterval) {
+                                Toast.makeText(context, "Interval pembaruan minimal $minInterval menit!", Toast.LENGTH_LONG).show()
+                                return@IconButton
+                            }
+
+                            scope.launch {
+                                repo.setMorningStart(mStart)
+                                repo.setMorningEnd(mEnd)
+                                repo.setNightStart(nStart)
+                                repo.setIntervalMinutes(interval)
+
+                                repo.setMorningQuotes(morningQuotes)
+                                repo.setNightQuotes(nightQuotes)
+                                repo.setDefaultQuotes(defaultQuotes)
+
+                                // Reschedule background work using WorkScheduler
+                                WorkScheduler.scheduleWallpaperWork(context, interval, forceUpdate = true)
+
+                                Toast.makeText(context, "Pengaturan berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                                onSettingsSaved()
+                            }
+                        },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Icon(imageVector = Icons.Default.Check, contentDescription = "Simpan")
+
+                    }
                 }
+
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -80,8 +130,8 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
+                .padding(innerPadding)
                 .padding(16.dp)
         ) {
             // Section 1: Jam Batasan (Format 24 Jam)
@@ -261,7 +311,6 @@ fun SettingsScreen(
             } else {
                 currentList.forEachIndexed { index, quote ->
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -320,49 +369,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Action Button: Save
-            Button(
-                onClick = {
-                    val mStart = morningStart.toIntOrNull()
-                    val mEnd = morningEnd.toIntOrNull()
-                    val nStart = nightStart.toIntOrNull()
-                    val interval = intervalMinutes.toIntOrNull()
 
-                    if (mStart == null || mStart !in 0..23 ||
-                        mEnd == null || mEnd !in 0..23 ||
-                        nStart == null || nStart !in 0..23
-                    ) {
-                        Toast.makeText(context, "Jam harus berupa angka antara 0 dan 23!", Toast.LENGTH_LONG).show()
-                        return@Button
-                    }
-
-                    if (interval == null || interval < minInterval) {
-                        Toast.makeText(context, "Interval pembaruan minimal $minInterval menit!", Toast.LENGTH_LONG).show()
-                        return@Button
-                    }
-
-                    scope.launch {
-                        repo.setMorningStart(mStart)
-                        repo.setMorningEnd(mEnd)
-                        repo.setNightStart(nStart)
-                        repo.setIntervalMinutes(interval)
-
-                        repo.setMorningQuotes(morningQuotes)
-                        repo.setNightQuotes(nightQuotes)
-                        repo.setDefaultQuotes(defaultQuotes)
-
-                        // Reschedule background work using WorkScheduler
-                        WorkScheduler.scheduleWallpaperWork(context, interval, forceUpdate = true)
-
-                        Toast.makeText(context, "Pengaturan berhasil disimpan!", Toast.LENGTH_SHORT).show()
-                        onSettingsSaved()
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text("Simpan Pengaturan", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
         }
     }
 }
