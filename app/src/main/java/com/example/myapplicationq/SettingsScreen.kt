@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,12 +42,10 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     val repo = SettingsRepository.getInstance(context)
 
-    // Boundaries and interval
-    var morningStart by remember { mutableStateOf("6") }
-    var morningEnd by remember { mutableStateOf("9") }
-    var nightStart by remember { mutableStateOf("21") }
-    var intervalMinutes by remember { mutableStateOf("120") }
-    val minInterval = 15
+    // Boundaries
+    var morningStart by remember { mutableStateOf(TextProvider.DEFAULT_MORNING_START.toString()) }
+    var morningEnd by remember { mutableStateOf(TextProvider.DEFAULT_MORNING_END.toString()) }
+    var nightStart by remember { mutableStateOf(TextProvider.DEFAULT_NIGHT_START.toString()) }
 
     // Quote lists
     var morningQuotes by remember { mutableStateOf(emptyList<String>()) }
@@ -60,7 +60,6 @@ fun SettingsScreen(
         morningStart = (repo.getMorningStart().first() ?: 6).toString()
         morningEnd = (repo.getMorningEnd().first() ?: 9).toString()
         nightStart = (repo.getNightStart().first() ?: 21).toString()
-        intervalMinutes = (repo.getIntervalMinutes().first() ?: 120).toString()
 
         morningQuotes = repo.getMorningQuotes().first()?.toList() ?: TextProvider.DEFAULT_MORNING.toList()
         nightQuotes = repo.getNightQuotes().first()?.toList() ?: TextProvider.DEFAULT_NIGHT.toList()
@@ -70,10 +69,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Pengaturan Wallpaper", fontWeight = FontWeight.Bold) },
+                title = { Text("Wallpaper Settings", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Kembali")
+                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -82,18 +81,12 @@ fun SettingsScreen(
                             val mStart = morningStart.toIntOrNull()
                             val mEnd = morningEnd.toIntOrNull()
                             val nStart = nightStart.toIntOrNull()
-                            val interval = intervalMinutes.toIntOrNull()
 
                             if (mStart == null || mStart !in 0..23 ||
                                 mEnd == null || mEnd !in 0..23 ||
                                 nStart == null || nStart !in 0..23
                             ) {
-                                Toast.makeText(context, "Jam harus berupa angka antara 0 dan 23!", Toast.LENGTH_LONG).show()
-                                return@IconButton
-                            }
-
-                            if (interval == null || interval < minInterval) {
-                                Toast.makeText(context, "Interval pembaruan minimal $minInterval menit!", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Hours must be a number between 0 and 23!", Toast.LENGTH_LONG).show()
                                 return@IconButton
                             }
 
@@ -101,16 +94,15 @@ fun SettingsScreen(
                                 repo.setMorningStart(mStart)
                                 repo.setMorningEnd(mEnd)
                                 repo.setNightStart(nStart)
-                                repo.setIntervalMinutes(interval)
 
                                 repo.setMorningQuotes(morningQuotes)
                                 repo.setNightQuotes(nightQuotes)
                                 repo.setDefaultQuotes(defaultQuotes)
 
-                                // Reschedule background work using WorkScheduler
-                                WorkScheduler.scheduleWallpaperWork(context, interval, forceUpdate = true)
+                                // Trigger an immediate update of the wallpaper with the new settings/quotes
+                                WorkScheduler.triggerOneTimeUpdate(context)
 
-                                Toast.makeText(context, "Pengaturan berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Settings saved successfully!", Toast.LENGTH_SHORT).show()
                                 onSettingsSaved()
                             }
                         },
@@ -118,7 +110,7 @@ fun SettingsScreen(
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        Icon(imageVector = Icons.Default.Check, contentDescription = "Simpan")
+                        Icon(imageVector = Icons.Default.Check, contentDescription = "Save")
 
                     }
                 }
@@ -136,15 +128,15 @@ fun SettingsScreen(
         ) {
             // Section 1: Jam Batasan (Format 24 Jam)
             Text(
-                text = "Batasan Waktu",
+                text = "Time Boundaries",
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            val nStart = nightStart.toIntOrNull() ?: 21
-            val mEnd = morningEnd.toIntOrNull() ?: 9
+            val nStart = nightStart.toIntOrNull() ?: 20
+            val mEnd = morningEnd.toIntOrNull() ?: 8
             val convertedLeft = if (nStart < 12) nStart + 24 else nStart
             val convertedRight = if (mEnd < 12) mEnd + 24 else mEnd
 
@@ -160,10 +152,10 @@ fun SettingsScreen(
                 },
             )
             Row(modifier = Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = "Mulai Malam Jam $nightStart")
-                Text(text = "Selesai Pagi Jam $morningEnd",)
+                Text(text = "Night Starts at $nightStart:00")
+                Text(text = "Morning Ends at $morningEnd:00",)
             }
-            val mStart = morningStart.toIntOrNull() ?: 6
+            val mStart = morningStart.toIntOrNull() ?: 3
             val convertedMorningStart = if (mStart < 12) mStart + 24 else mStart
 
             // Pastikan startMin < endMax untuk menghindari exception pada Slider
@@ -178,34 +170,31 @@ fun SettingsScreen(
                     morningStart = (newValue.toInt() % 24).toString()
                 }
             )
-            Text(text = "Mulai Pagi Jam $morningStart")
+            Text(text = "Morning Starts at $morningStart:00")
             Spacer(modifier = Modifier.height(20.dp))
-            // Section 2: Durasi Pembaruan (Interval)
+            // Section 2: Pemicu Pembaruan (Trigger)
             Text(
-                text = "Interval Pembaruan Otomatis",
+                text = "Current Time",
                 color = MaterialTheme.colorScheme.onBackground,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-
-            Slider(
-
-                value = intervalMinutes.toFloat(),
-                steps = 24,
-                onValueChange = { intervalMinutes = it.toInt().toString() },
-                valueRange = minInterval.toFloat()..1440f,
+            val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+            LinearProgressIndicator(
+                progress = currentHour.toFloat() / 23f,
+                modifier = Modifier.fillMaxWidth()
             )
-            val intervalText = if (intervalMinutes.toInt() >= 60) {
-                val hours = intervalMinutes.toInt() / 60
-                val rem = intervalMinutes.toInt() % 60
-                if (rem == 0) "$hours jam" else "$hours jam $rem menit"
-            } else {
-                "$intervalMinutes menit"
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val currentTime = TextProvider.getCurrentTimeName(currentHour)
+                Text(text = "Morning", color = if (currentTime != "MORNING") MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary)
+                Text(text = "Daytime", color = if (currentTime != "DEFAULT") MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary)
+                Text(text = "Night", color = if (currentTime != "NIGHT") MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.primary)
             }
-            Text(
-                text = "Perbarui setiap $intervalText",
-            )
+
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -216,7 +205,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Daftar Kata-Kata / Quotes",
+                    text = "Quote Lists",
                     color = MaterialTheme.colorScheme.onBackground,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
@@ -230,13 +219,13 @@ fun SettingsScreen(
                             1 -> nightQuotes = TextProvider.DEFAULT_NIGHT.toList()
                             2 -> defaultQuotes = TextProvider.DEFAULT_DEFAULT.toList()
                         }
-                        Toast.makeText(context, "Kategori ini dikembalikan ke default!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Category reset to default!", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
                     Icon(imageVector = Icons.Default.Refresh, contentDescription = "Reset", modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Kembalikan Default", fontSize = 13.sp)
+                    Text("Reset", fontSize = 13.sp)
                 }
             }
 
@@ -248,13 +237,13 @@ fun SettingsScreen(
                     .clip(RoundedCornerShape(8.dp))
             ) {
                 Tab(selected = selectedTab == 0, onClick = { selectedTab = 0; newQuoteText = "" }) {
-                    Text("Pagi", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
+                    Text("Morning", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
                 }
                 Tab(selected = selectedTab == 1, onClick = { selectedTab = 1; newQuoteText = "" }) {
-                    Text("Malam", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
+                    Text("Night", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
                 }
                 Tab(selected = selectedTab == 2, onClick = { selectedTab = 2; newQuoteText = "" }) {
-                    Text("Siang", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
+                    Text("Daytime", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -268,7 +257,7 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = newQuoteText,
                     onValueChange = { newQuoteText = it },
-                    placeholder = { Text("Tambah quotes baru...") },
+                    placeholder = { Text("Add new quote...") },
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -285,7 +274,7 @@ fun SettingsScreen(
                     },
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Tambah")
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add")
                 }
             }
 
@@ -300,7 +289,7 @@ fun SettingsScreen(
 
             if (currentList.isEmpty()) {
                 Text(
-                    text = "Belum ada kutipan. Silakan tambah di atas.",
+                    text = "No quotes yet. Please add one above.",
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
@@ -357,7 +346,7 @@ fun SettingsScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
-                                    contentDescription = "Hapus",
+                                    contentDescription = "Delete",
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }

@@ -24,10 +24,10 @@ class SettingsRepository private constructor(private val context: Context) {
         private val MORNING_START = intPreferencesKey("morning_start")
         private val MORNING_END = intPreferencesKey("morning_end")
         private val NIGHT_START = intPreferencesKey("night_start")
-        private val INTERVAL_MIN = intPreferencesKey("wallpaper_interval_min")
         private val MORNING_QUOTES = stringPreferencesKey("morning_quotes_json")
         private val NIGHT_QUOTES = stringPreferencesKey("night_quotes_json")
         private val DEFAULT_QUOTES = stringPreferencesKey("default_quotes_json")
+        private val CHANGER_ENABLED = booleanPreferencesKey("changer_enabled")
     }
 
     // ----- Primitive values -----
@@ -40,8 +40,8 @@ class SettingsRepository private constructor(private val context: Context) {
     fun getNightStart(): Flow<Int?> = context.dataStore.data.map { it[NIGHT_START] }
     suspend fun setNightStart(value: Int) = context.dataStore.updateData { it.toMutablePreferences().apply { this[NIGHT_START] = value } }
 
-    fun getIntervalMinutes(): Flow<Int?> = context.dataStore.data.map { it[INTERVAL_MIN] }
-    suspend fun setIntervalMinutes(value: Int) = context.dataStore.updateData { it.toMutablePreferences().apply { this[INTERVAL_MIN] = value } }
+    fun isChangerEnabled(): Flow<Boolean> = context.dataStore.data.map { it[CHANGER_ENABLED] ?: true }
+    suspend fun setChangerEnabled(value: Boolean) = context.dataStore.updateData { it.toMutablePreferences().apply { this[CHANGER_ENABLED] = value } }
 
     // ----- Quote lists -----
     private val json = Json { ignoreUnknownKeys = true }

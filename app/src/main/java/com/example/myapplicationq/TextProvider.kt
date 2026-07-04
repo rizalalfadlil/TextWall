@@ -34,61 +34,75 @@ object TextProvider {
 
     // ---- DATA: quotes ---------------------------------------------------------
     val DEFAULT_MORNING = arrayOf(
-        "✅ Sudah merapikan tempat tidur? Memulai hari dengan ruang rapi meningkatkan mood.",
-        "🚿 Mandi pagi dengan air segar menstimulasi aliran darah dan meningkatkan konsentrasi.",
-        "🥣 Sarapan bergizi (protein + karbohidrat kompleks) memberi energi stabil sampai siang.",
-        "📚 Bacalah satu halaman buku motivasi atau artikel singkat tentang goal harian Anda.",
-        "🧘 5 menit meditasi atau pernapasan dalam memperkuat kejernihan pikiran.",
-        "🏃‍♂️ Gerakan ringan: stretching atau jalan kaki 5‑10 menit mengaktifkan otot dan otak.",
-        "🗒️ Tulis 3 prioritas utama hari ini di notebook—tulis di atas kertas meningkatkan komitmen.",
-        "🔍 Periksa to‑do list: tandai apa yang sudah selesai kemarin, atur ulang yang belum.",
-        "💧 Minum segelas air putih dulu—hidrasi otak meningkatkan fokus."
+        "✅ Have you made your bed? Starting the day with a neat space boosts your mood.",
+        "🚿 A morning shower with fresh water stimulates blood flow and increases concentration.",
+        "🥣 A nutritious breakfast (protein + complex carbs) provides stable energy until midday.",
+        "📚 Read one page of a motivational book or a short article about your daily goal.",
+        "🧘 5 minutes of meditation or deep breathing strengthens mental clarity.",
+        "🏃‍♂️ Light movement: stretch or walk for 5‑10 minutes to activate muscles and brain.",
+        "🗒️ Write down today's top 3 priorities in a notebook—writing on paper increases commitment.",
+        "🔍 Check your to-do list: mark what was done yesterday, reorganize what wasn't.",
+        "💧 Drink a glass of water first—brain hydration improves focus."
     )
 
     val DEFAULT_NIGHT = arrayOf(
-        "🌙 Kurang tidur 6 jam atau kurang = penurunan memori dan konsentrasi hingga 40 %.",
-        "🧠 Begadang meningkatkan hormon stres (cortisol) yang mengganggu mood keesokan harinya.",
-        "⚡ Energi fisik menurun drastis; refleks melambat, risiko kecelakaan meningkat.",
-        "📉 Produktivasi menurun; keputusan menjadi impulsif dan kualitas kerja menurun.",
-        "🕰️ Waktu tidur yang tidak teratur mengacaukan jam sirkadian, susah bangun pagi.",
-        "💤 Kualitas tidur buruk memicu kulit kusam, mata bengkak, dan gangguan kesehatan jangka panjang.",
-        "🚫 Konsentrasi menurun, sehingga mudah membuat kesalahan dalam kode atau dokumen.",
-        "📈 Risiko gangguan metabolisme meningkat; berat badan dapat naik karena hormon leptin terganggu.",
-        "🔄 Pola begadang berulang dapat memicu gangguan psikologis seperti kecemasan dan depresi."
+        "🌙 Sleeping 6 hours or less = up to 40% reduction in memory and concentration.",
+        "🧠 Staying up late increases stress hormones (cortisol), disrupting next day's mood.",
+        "⚡ Physical energy drops drastically; reflexes slow down, accident risk increases.",
+        "📉 Productivity decreases; decisions become impulsive and work quality drops.",
+        "🕰️ Irregular sleep schedules mess up circadian rhythms, making it hard to wake up early.",
+        "💤 Poor sleep quality triggers dull skin, puffy eyes, and long-term health issues.",
+        "🚫 Concentration drops, making it easy to make mistakes in code or documents.",
+        "📈 Risk of metabolic disorders increases; weight can rise due to disrupted leptin hormone.",
+        "🔄 Repeating late-night patterns can trigger psychological issues like anxiety and depression."
     )
 
     val DEFAULT_DEFAULT = arrayOf(
-        "Kerja keras di siang hari = hasil gemilang di sore hari.",
-        "Fokus pada satu tugas, selesaikan, lalu beralih. Produktif itu 'bertahap'.",
-        "Jangan biarkan rasa lelah menghalangi tujuan. 'Tarik napas', lanjutkan!",
-        "Setiap menit yang Anda gunakan untuk belajar, menambah nilai diri.",
-        "Jika Anda ingin sesuatu yang belum pernah Anda miliki, lakukan sesuatu yang 'belum pernah' Anda lakukan.",
-        "'Kualitas' kerja 'lebih penting' daripada kuantitas. Buat setiap baris kode berarti.",
-        "Senyum di meja kerja menular pada tim, 'tingkatkan energi' mereka.",
-        "Jangan menunda—mulai sekarang, selesaikan setengahnya, sisanya jadi 'kemenangan'.",
-        "Produktivitas bukan berarti bekerja terus, melainkan bekerja 'pintar'."
+        "Hard work during the day = brilliant results in the afternoon.",
+        "Focus on one task, finish it, then move on. Productivity is 'step-by-step'.",
+        "Don't let fatigue block your goals. 'Take a breath', continue!",
+        "Every minute you spend learning increases your value.",
+        "If you want something you've never had, do something you've 'never' done.",
+        "Work 'quality' is 'more important' than quantity. Make every line of code count.",
+        "A smile at your desk is contagious, 'boost' their energy.",
+        "Don't delay—start now, finish half, the rest is 'victory'.",
+        "Productivity doesn't mean working constantly, but working 'smart'."
     )
 
     // -------------------------------------------------------------------------
     // Default time boundaries (used when no user preferences are set)
-    private const val DEFAULT_MORNING_START = 6
-    private const val DEFAULT_MORNING_END = 9
-    private const val DEFAULT_NIGHT_START = 21
+    const val DEFAULT_MORNING_START = 3
+    const val DEFAULT_MORNING_END = 8
+    const val DEFAULT_NIGHT_START = 20
 
     /**
      * Returns a random quote/aktivitas yang sesuai dengan jam `hour`.
      */
+
+    fun getCurrentTimeName(hour: Int):String{
+        val morningStart = runBlocking { settingsRepo.getMorningStart().first() } ?: 3
+        val morningEnd = runBlocking { settingsRepo.getMorningEnd().first() } ?: 8
+        val nightStart = runBlocking { settingsRepo.getNightStart().first() } ?: 20
+
+        val timeName = when (// Night period: from nightStart to end of day, and early hours until morningStart
+            hour) {
+            !in morningStart..<nightStart -> "NIGHT"
+            // Morning period
+            in morningStart..morningEnd -> "MORNING"
+            // Default period (daytime)
+            else -> "DEFAULT"
+        }
+        return timeName
+    }
     fun getTimeBasedText(hour: Int): String {
         // Fetch configurable boundaries, falling back to defaults if not set
-        val morningStart = runBlocking { settingsRepo.getMorningStart().first() } ?: 6
-        val morningEnd = runBlocking { settingsRepo.getMorningEnd().first() } ?: 9
-        val nightStart = runBlocking { settingsRepo.getNightStart().first() } ?: 21
+        val time = getCurrentTimeName(hour)
 
-        val quotes = when {
-            // Night period: from nightStart to end of day, and early hours until morningStart
-            hour >= nightStart || hour < morningStart -> getQuoteList(QuoteType.NIGHT)
+        val quotes = when (// Night period: from nightStart to end of day, and early hours until morningStart
+            time) {
+            "NIGHT" -> getQuoteList(QuoteType.NIGHT)
             // Morning period
-            hour in morningStart..morningEnd -> getQuoteList(QuoteType.MORNING)
+            "MORNING" -> getQuoteList(QuoteType.MORNING)
             // Default period (daytime)
             else -> getQuoteList(QuoteType.DEFAULT)
         }
