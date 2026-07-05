@@ -159,6 +159,7 @@ This project is licensed under the terms specified in the project configuration.
 
 ### Core Feature/Important
 - Change the day progress range to same as the *morningStart* slider instead of 24 day hour
+- Change character symbol for highlight word from `'` to other (maybe `[]` or `()`)
 
 ### Less Important (when there's no important todo)
 - Replace AI-Slopped placeholder Quotes
