@@ -168,11 +168,11 @@ Key dependencies include:
 
 ## Known Issues
 ### Issues
-|id|mode|details|
-|---|---|---|
-|`P1`|debug|Wallpaper Eventually changed to default (I Don't Know The cause, is this caused by the App or the Device itself)|
-|`P2`|debug|Accessibility settings permission reset after clicking restart button inside the app on some phone (won't reset if the app is restarted manually)|
-|`P3`|release|Enable/Disable wallpaper button state doesn't changed instantly (the function still worked, but to show current state requiring restart)
+|id|details|
+|---|---|
+|`P1`|Wallpaper Eventually changed to default (I Don't Know The cause, is this caused by the App or the Device itself)|
+|`P2`|Accessibility settings permission reset after clicking restart button inside the app on some phone (won't reset if the app is restarted manually)|
+|`P3`|Enable/Disable wallpaper button state doesn't changed instantly (the function still worked, but to show current state requiring restart)
 
 ### Tested on
 |name|details|mode|problem|
